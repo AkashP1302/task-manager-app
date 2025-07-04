@@ -63,10 +63,10 @@ exports.createTask = async (req, res) => {
 exports.getTasks = async (req, res) => {
   try {
     const userId = req.user._id;
-    const tasks = await Task.find({ user: userId })
+    // { user: userId }
+    const tasks = await Task.find()
       .sort({ createdAt: -1 })
       .populate("user", "name email profileImage");
-    console.log("@@@@@tasks", tasks);
 
     // const tasks = await Task.find().populate("user", "name email");
     res.status(200).json({ data: tasks });
@@ -110,6 +110,7 @@ exports.updateTask = async (req, res) => {
     }
 
     const wasCompleted = task.status === "Completed";
+    const prevStatus = task.status;
 
     const { title, description, status, dueDate, userId } = req.body;
 
@@ -150,6 +151,10 @@ exports.updateTask = async (req, res) => {
         "Task Completed",
         `Your task "${task.title}" is marked as completed.`
       );
+    }
+    if (status && status !== prevStatus) {
+      const populatedTask = await Task.findById(task._id).populate("user");
+      global.io.emit("taskStatusUpdated", populatedTask);
     }
 
     return res.status(200).json({ message: "Task updated", task });
