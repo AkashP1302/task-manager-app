@@ -1,7 +1,7 @@
 // controllers/authController.js
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
-const redisClient = require("../config/redisClient");
+const { redisClient } = require("../config/redisClient");
 
 const generateToken = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
@@ -74,9 +74,12 @@ exports.login = async (req, res) => {
     // ✅ Generate token
     const token = generateToken(user._id);
 
-    // ✅ Store in Redis with 24-hour TTL
+    if (!redisClient.isOpen) {
+      await redisClient.connect(); // Optional safeguard
+    }
+
     await redisClient.set(user._id.toString(), token, {
-      EX: 60 * 60 * 24, // 24 hours
+      EX: 60 * 60 * 24,
     });
 
     // ✅ Respond with token and user info
@@ -90,6 +93,7 @@ exports.login = async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("❌ Login failed:", err); // Add this
     res.status(500).json({ message: "Login failed", error: err.message });
   }
 };

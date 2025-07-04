@@ -63,8 +63,13 @@ exports.createTask = async (req, res) => {
 exports.getTasks = async (req, res) => {
   try {
     const userId = req.user._id;
-    const tasks = await Task.find({ user: userId }).sort({ createdAt: -1 });
-    res.status(200).json({ tasks });
+    const tasks = await Task.find({ user: userId })
+      .sort({ createdAt: -1 })
+      .populate("user", "name email profileImage");
+    console.log("@@@@@tasks", tasks);
+
+    // const tasks = await Task.find().populate("user", "name email");
+    res.status(200).json({ data: tasks });
   } catch (err) {
     res
       .status(500)
@@ -90,77 +95,34 @@ exports.getTaskById = async (req, res) => {
   }
 };
 
-// exports.updateTask = async (req, res) => {
-//   try {
-//     const userId = req.user._id;
-//     const taskId = req.params.id;
-
-//     let task = await Task.findOne({ _id: taskId, user: userId });
-//     if (!task) {
-//       return res.status(404).json({ message: "Task not found" });
-//     }
-
-//     // Update fields
-//     const { title, description, status, dueDate } = req.body;
-//     if (title) task.title = title;
-//     if (description) task.description = description;
-//     if (status) task.status = status;
-//     if (dueDate) task.dueDate = dueDate;
-
-//     const taskDir = path.join(
-//       __dirname,
-//       "../uploads",
-//       userId.toString(),
-//       taskId
-//     );
-//     fs.mkdirSync(taskDir, { recursive: true });
-
-//     const attachments = [];
-
-//     if (req.files && req.files.length > 0) {
-//       // Optionally: Delete old files here if needed
-//       for (const file of req.files) {
-//         const filename = `${uuid()}-${file.originalname}`;
-//         const filepath = path.join(taskDir, filename);
-//         fs.writeFileSync(filepath, file.buffer);
-//         attachments.push(`/uploads/${userId}/${taskId}/${filename}`);
-//       }
-
-//       task.attachments = attachments;
-//     }
-
-//     await task.save();
-
-//     res.status(200).json({ message: "Task updated", task });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Update failed", error: err.message });
-//   }
-// };
-
 exports.updateTask = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userIdFromToken = req.user._id;
     const taskId = req.params.id;
 
-    let task = await Task.findOne({ _id: taskId, user: userId });
+    let task = await Task.findOne({ _id: taskId, user: userIdFromToken });
     if (!task) {
-      return res.status(404).json({ message: "Task not found" });
+      // Allow admin or task creator to update any task (optional logic)
+      task = await Task.findById(taskId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
     }
 
-    const wasCompleted = task.status === "Completed"; // 🔥 store previous state
+    const wasCompleted = task.status === "Completed";
 
-    // Update fields
-    const { title, description, status, dueDate } = req.body;
+    const { title, description, status, dueDate, userId } = req.body;
+
     if (title) task.title = title;
     if (description) task.description = description;
     if (status) task.status = status;
     if (dueDate) task.dueDate = dueDate;
+    if (userId) task.user = userId;
 
     const taskDir = path.join(
       __dirname,
       "../uploads",
-      userId.toString(),
+      task.user.toString(),
       taskId
     );
     fs.mkdirSync(taskDir, { recursive: true });
@@ -172,7 +134,7 @@ exports.updateTask = async (req, res) => {
         const filename = `${uuid()}-${file.originalname}`;
         const filepath = path.join(taskDir, filename);
         fs.writeFileSync(filepath, file.buffer);
-        attachments.push(`/uploads/${userId}/${taskId}/${filename}`);
+        attachments.push(`/uploads/${task.user}/${taskId}/${filename}`);
       }
 
       task.attachments = attachments;
@@ -180,16 +142,17 @@ exports.updateTask = async (req, res) => {
 
     await task.save();
 
-    res.status(200).json({ message: "Task updated", task });
+    const assignedUser = await User.findById(task.user);
 
-    const user = await User.findById(userId);
-    if (status === "Completed" && !wasCompleted) {
+    if (status === "Completed" && !wasCompleted && assignedUser) {
       await sendEmail(
-        user.email,
+        assignedUser.email,
         "Task Completed",
         `Your task "${task.title}" is marked as completed.`
       );
     }
+
+    return res.status(200).json({ message: "Task updated", task });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Update failed", error: err.message });
@@ -227,7 +190,8 @@ exports.deleteTask = async (req, res) => {
 exports.downloadTasksCSV = async (req, res) => {
   try {
     const userId = req.user._id;
-    const tasks = await Task.find({ user: userId });
+    // { user: userId }
+    const tasks = await Task.find();
 
     const fields = ["_id", "title", "status", "createdAt", "dueDate"];
     const parser = new Parser({ fields });

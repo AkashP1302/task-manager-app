@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const redisClient = require("../config/redisClient");
+const { redisClient } = require("../config/redisClient");
 
 const protect = async (req, res, next) => {
   try {
