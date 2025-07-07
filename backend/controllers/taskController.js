@@ -102,7 +102,7 @@ exports.updateTask = async (req, res) => {
 
     let task = await Task.findOne({ _id: taskId, user: userIdFromToken });
     if (!task) {
-      // Allow admin or task creator to update any task (optional logic)
+      // Optional: Allow admin or creator to update
       task = await Task.findById(taskId);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
@@ -120,6 +120,7 @@ exports.updateTask = async (req, res) => {
     if (dueDate) task.dueDate = dueDate;
     if (userId) task.user = userId;
 
+    // Create attachment directory
     const taskDir = path.join(
       __dirname,
       "../uploads",
@@ -137,29 +138,34 @@ exports.updateTask = async (req, res) => {
         fs.writeFileSync(filepath, file.buffer);
         attachments.push(`/uploads/${task.user}/${taskId}/${filename}`);
       }
-
       task.attachments = attachments;
     }
 
     await task.save();
 
-    const assignedUser = await User.findById(task.user);
+    // Fetch updated task with populated user
+    const populatedTask = await Task.findById(task._id).populate("user");
 
-    if (status === "Completed" && !wasCompleted && assignedUser) {
+    // Email if status changed to Completed
+    if (status === "Completed" && !wasCompleted && populatedTask.user) {
       await sendEmail(
-        assignedUser.email,
+        populatedTask.user.email,
         "Task Completed",
-        `Your task "${task.title}" is marked as completed.`
+        `Your task "${task.title}" has been marked as completed.`
       );
     }
+
+    // Emit event only if status changed
     if (status && status !== prevStatus) {
-      const populatedTask = await Task.findById(task._id).populate("user");
       global.io.emit("taskStatusUpdated", populatedTask);
     }
 
+    // Always emit a general update event
+    global.io.emit("taskUpdated", populatedTask);
+
     return res.status(200).json({ message: "Task updated", task });
   } catch (err) {
-    console.error(err);
+    console.error("Update error:", err);
     res.status(500).json({ message: "Update failed", error: err.message });
   }
 };

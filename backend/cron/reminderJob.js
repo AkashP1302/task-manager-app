@@ -6,7 +6,7 @@ const sendEmail = require("../utils/sendEmail");
 
 const scheduleTaskReminder = () => {
   cron.schedule("0 8 * * *", async () => {
-    console.log("📅 Running daily task reminder job at 8 AM");
+    console.log("Running daily task reminder job at 8 AM");
 
     const today = new Date().toISOString().split("T")[0]; // 'YYYY-MM-DD'
 
@@ -25,9 +25,9 @@ const scheduleTaskReminder = () => {
         );
       }
 
-      console.log(`🔔 Reminders sent for ${tasks.length} due tasks`);
+      console.log(`Reminders sent for ${tasks.length} due tasks`);
     } catch (error) {
-      console.error("❌ Error in task reminder cron job:", error.message);
+      console.error("Error in task reminder cron job:", error.message);
     }
   });
 };

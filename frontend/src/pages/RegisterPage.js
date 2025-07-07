@@ -25,6 +25,8 @@ const RegisterPage = () => {
   const [formValues, setFormValues] = useState({});
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -37,18 +39,27 @@ const RegisterPage = () => {
     }
 
     try {
+      const formData = new FormData();
+      formData.append("name", formValues.name);
+      formData.append("email", formValues.email);
+      formData.append("password", formValues.password);
+      if (selectedFile) {
+        formData.append("profile", selectedFile);
+      }
+
       const response = await axios.post(
         "http://localhost:5000/api/auth/register",
+        formData,
         {
-          name: formValues.name,
-          email: formValues.email,
-          password: formValues.password,
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
 
-      if (response.status === 201 || response.data.success) {
-        setSuccess("Registration successful! Redirecting to login...");
-        setTimeout(() => navigate("/"), 1500);
+      if (response.status === 201) {
+        setSuccess("Registration complete! Redirecting...");
+        setTimeout(() => navigate("/"), 2000);
       } else {
         setError("Registration failed");
       }
@@ -82,6 +93,7 @@ const RegisterPage = () => {
             setFormValues((prev) => ({ ...prev, [name]: value }))
           }
           onSubmit={handleSubmit}
+          onFileChange={setSelectedFile}
         />
         <Button
           type="submit"

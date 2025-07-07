@@ -26,7 +26,7 @@ mongoose
     console.error("❌ MongoDB connection failed:", err.message);
   });
 
-scheduleTaskReminder(); // 🔥 start the cron job
+scheduleTaskReminder(); // start the cron job
 
 // Redis connection (optional)
 

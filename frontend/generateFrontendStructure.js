@@ -87,7 +87,7 @@ folders.forEach((folder) => {
   const dirPath = path.join(baseDir, folder);
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
-    console.log(`✅ Created folder: ${dirPath}`);
+    console.log(`Created folder: ${dirPath}`);
   }
 });
 
@@ -98,7 +98,7 @@ for (const [relativePath, content] of Object.entries(files)) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   fs.writeFileSync(filePath, content);
-  console.log(`📄 Created file: ${filePath}`);
+  console.log(`Created file: ${filePath}`);
 }
 
-console.log("🎉 Frontend structure generated!");
+console.log("Frontend structure generated!");
